@@ -1,7 +1,11 @@
-import javax.imageio.stream.ImageInputStream;
+import org.w3c.dom.ls.LSOutput;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.AudioInputStream;
 
 public class Game
 {
+
     private Parser parser;
     private Room currentRoom;
     /**
@@ -9,6 +13,7 @@ public class Game
      */
     public Game() 
     {
+        playSound("Shire.wav");
         createRooms();
         parser = new Parser();
     }
@@ -31,9 +36,6 @@ public class Game
         kingChamber = new Room("in a rather large bedchamber. There is a intricately designed bed central to the room. It must have cost a small fortune.");
         meetingRoom = new Room("in a surprisingly empty room. The only thing of note is a large round table in the middle. Perhaps this was used as a  meeting room.");
 
-
-
-        
         // initialise room exits
         courtyard.setExits(new Room[]{lobby, cave, null, null, null, null});
         lobby.setExits(new Room[]{throneRoom, guestChamber, courtyard, fireside, landing, dungeon});
@@ -48,13 +50,12 @@ public class Game
         kingChamber.setExits(new Room[]{null, null, null, landing, null, null});
         meetingRoom.setExits(new Room[]{null, null, landing, null, null, null});
 
-
         currentRoom = courtyard;  // start game in the courtyard
     }
 
     /**
-     *  Main play routine.  Loops until end of play.
-     */
+      *  Main play routine.  Loops until end of play.
+      */
 
     public void play()
     {
@@ -86,7 +87,6 @@ public class Game
         showExits();
         System.out.println();
     }
-//Something's not right
     private boolean processCommand(Command command)
     {
         boolean wantToQuit = false;
@@ -205,5 +205,23 @@ public class Game
             nextRoom = currentRoom.exits[5];
         return nextRoom;
     }
+    public static synchronized void playSound(final String url) {
+        new Thread(new Runnable() {
+            // The wrapper thread is unnecessary, unless it blocks on the
+            // Clip finishing; see comments.
+            public void run() {
+                try {
+                    Clip clip = AudioSystem.getClip();
+                    AudioInputStream inputStream = AudioSystem.getAudioInputStream(
+                            Main.class.getResourceAsStream("/" + url));
+                    clip.open(inputStream);
+                    clip.start();
+                } catch (Exception e) {
+                    System.err.println(e.getMessage());
+                }
+            }
+        }).start();
+    }
+
 
 }
