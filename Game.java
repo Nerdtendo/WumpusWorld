@@ -1,11 +1,12 @@
-import org.w3c.dom.ls.LSOutput;
 import javax.sound.sampled.Clip;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.DataLine;
 
 public class Game
 {
-
+    Music currentSong = new Music();
+    Music nextSong = new Music();
     private Parser parser;
     private Room currentRoom;
     /**
@@ -13,7 +14,6 @@ public class Game
      */
     public Game() 
     {
-        playSound("Shire.wav");
         createRooms();
         parser = new Parser();
     }
@@ -37,18 +37,27 @@ public class Game
         meetingRoom = new Room("in a surprisingly empty room. The only thing of note is a large round table in the middle. Perhaps this was used as a  meeting room.");
 
         // initialise room exits
-        courtyard.setExits(new Room[]{lobby, cave, null, null, null, null});
-        lobby.setExits(new Room[]{throneRoom, guestChamber, courtyard, fireside, landing, dungeon});
-        cave.setExits(new Room[]{null, dungeon, null, courtyard, null, null});
-        dungeon.setExits(new Room[]{null, null, null, cave, lobby, null});
-        guestChamber.setExits(new Room[]{null, null, null, lobby, null, null});
-        fireside.setExits(new Room[]{null, lobby, null, null, null, null});
-        throneRoom.setExits(new Room[]{null, null, lobby, banquetHall, library, null});
-        banquetHall.setExits(new Room[]{null, throneRoom, null, null, null, null});
-        library.setExits(new Room[]{null, landing, null, null, null, throneRoom});
-        landing.setExits(new Room[]{meetingRoom, kingChamber, null, library, null, lobby});
-        kingChamber.setExits(new Room[]{null, null, null, landing, null, null});
-        meetingRoom.setExits(new Room[]{null, null, landing, null, null, null});
+        courtyard.exits.put("north", cave);
+        courtyard.setExits(new String[]{"north", "east"}, new Room[]{lobby, cave});
+        lobby.setExits(new String[]{"north", "east", "south", "west", "up", "down"}, new Room[]{throneRoom, guestChamber, courtyard, fireside, landing, dungeon});
+        cave.setExits(new String[]{"east", "west"} ,new Room[]{dungeon, courtyard});
+        dungeon.setExits(new String[]{"west", "up"}, new Room[]{cave, lobby});
+        guestChamber.setExits(new String[]{"west"}, new Room[]{lobby});
+        fireside.setExits(new String[]{"east"}, new Room[]{lobby});
+        throneRoom.setExits(new String[]{"south", "west", "up"}, new Room[]{lobby, banquetHall, library});
+        banquetHall.setExits(new String[]{"east"}, new Room[]{throneRoom});
+        library.setExits(new String[]{"east", "down"}, new Room[]{landing, throneRoom});
+        landing.setExits(new String[]{"north", "east", "west"}, new Room[]{meetingRoom, kingChamber, library, lobby});
+        kingChamber.setExits(new String[]{"west"}, new Room[]{landing});
+        meetingRoom.setExits(new String[]{"south"}, new Room[]{landing});
+
+        courtyard.setMusicTrack("Sound/Music/1-01 - Overture.wav");
+        lobby.setMusicTrack("Sound/Music/1-02 - The Star Festival.wav");
+        cave.setMusicTrack("Sound/Music/1-03 - Attack of the Airships.wav");
+        dungeon.setMusicTrack("Sound/Music/1-04 - Catastrophe.wav");
+        guestChamber.setMusicTrack("Sound/Music/1-05 - Peach's Castle Stolen.wav");
+        fireside.setMusicTrack("Sound/Music/1-06 - Enter the Galaxy.wav");
+        throneRoom.setMusicTrack("Sound/Music/Shire.wav");
 
         currentRoom = courtyard;  // start game in the courtyard
     }
@@ -78,6 +87,7 @@ public class Game
      */
     private void printWelcome()
     {
+        currentSong.playSound(currentRoom.getMusicTrack(), true, .5f);
         System.out.println();
         System.out.println("Welcome to the Wumpus World");
         System.out.println("Wumpus World is a new, incredibly boring adventure game.");
@@ -86,32 +96,29 @@ public class Game
         System.out.println("You are " + currentRoom.getDescription());
         showExits();
         System.out.println();
+        try {
+            Thread.sleep(100);
+        } catch(InterruptedException e){}
     }
     private boolean processCommand(Command command)
     {
         boolean wantToQuit = false;
 
         if(command.isUnknown()) {
+            String commandWord = command.getCommandWord();
             System.out.println("I don't know what you mean...");
             return false;
         }
-
         String commandWord = command.getCommandWord();
         if (commandWord.equals("help")) {
             printHelp();
         }
         else if (commandWord.equals("go")) {
-            if (command.hasSecondWord()) {
-                Room next = chooseNextRoom(command);
-                goRoom(next);
-            }
-            else
-                System.out.println("Go where?");
+            goRoom(chooseNextRoom(command), command);
         }
         else if (commandWord.equals("quit")) {
             wantToQuit = quit(command);
         }
-
         return wantToQuit;
     }
 
@@ -120,13 +127,13 @@ public class Game
     private void printHelp()
     {
         System.out.println("You are lost. You are alone. You wander");
-        System.out.println("around at the university.");
+        System.out.println("around at the abandoned castle grounds.");
         System.out.println();
         System.out.println("Your command words are:");
         System.out.println("   go quit help");
     }
 
-    private void goRoom(Room nextRoom)
+    private void goRoom(Room nextRoom, Command command)
     {
         // This function used to be made up of three parts. A check for a second word in the command,
         // a block that chose the next room, and a block moved you there. I put the first part when the command is called.
@@ -135,7 +142,18 @@ public class Game
         // Move (if possible)
         if (nextRoom == null)
             System.out.println("There is no door!");
+        else if (!command.hasSecondWord())
+            System.out.println("Go where?");
         else {
+            nextSong.playSound(nextRoom.getMusicTrack(), true, 0);
+            while (nextSong.currentTrack==null) {
+                try {
+                    if (nextSong.currentTrack == null)
+                        Thread.sleep(100);
+                } catch (InterruptedException e) {
+                }
+            }
+            Music.mixTracks(currentSong, nextSong);
             currentRoom = nextRoom;
             System.out.println("You are " + currentRoom.getDescription());
             showExits();
@@ -157,32 +175,8 @@ public class Game
 
     public void showExits(){
         StringBuilder exitMessage = new StringBuilder("Exits:");
-        for(int i =0; i < currentRoom.exits.length; i++){
-            if(currentRoom.exits[i] != null) {
-                switch (i) {
-                    case 0:
-                        exitMessage.append(" north");
-                        break;
-                    case 1:
-                        exitMessage.append(" east");
-                        break;
-                    case 2:
-                        exitMessage.append(" south");
-                        break;
-                    case 3:
-                        exitMessage.append(" west");
-                        break;
-                    case 4:
-                        exitMessage.append(" up");
-                        break;
-                    case 5:
-                        exitMessage.append(" down");
-                        break;
-                    default:
-                        System.out.print(" You shouldn't be seeing this");
-                        break;
-                }
-            }
+        for (String direction : currentRoom.exits.keySet()){
+            exitMessage.append(" "+ direction);
         }
         System.out.println(exitMessage);
     }
@@ -191,37 +185,10 @@ public class Game
 
         // Determines direction to move (if direction is valid).
         Room nextRoom = null;
-        if(direction.equals("north"))
-            nextRoom = currentRoom.exits[0];
-        else if(direction.equals("east"))
-            nextRoom = currentRoom.exits[1];
-        else if(direction.equals("south"))
-            nextRoom = currentRoom.exits[2];
-        else if(direction.equals("west"))
-            nextRoom = currentRoom.exits[3];
-        else if(direction.equals("up"))
-            nextRoom = currentRoom.exits[4];
-        else if(direction.equals("down"))
-            nextRoom = currentRoom.exits[5];
+        if (currentRoom.exits.get(direction)!=null) {
+            nextRoom=currentRoom.exits.get(direction);
+        }
         return nextRoom;
     }
-    public static synchronized void playSound(final String url) {
-        new Thread(new Runnable() {
-            // The wrapper thread is unnecessary, unless it blocks on the
-            // Clip finishing; see comments.
-            public void run() {
-                try {
-                    Clip clip = AudioSystem.getClip();
-                    AudioInputStream inputStream = AudioSystem.getAudioInputStream(
-                            Main.class.getResourceAsStream("/" + url));
-                    clip.open(inputStream);
-                    clip.start();
-                } catch (Exception e) {
-                    System.err.println(e.getMessage());
-                }
-            }
-        }).start();
-    }
-
 
 }

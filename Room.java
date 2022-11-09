@@ -1,16 +1,20 @@
+import java.util.HashMap;
+
 public class Room
 {
     protected String description;
-    protected Room[] exits = new Room[6];//You should probably make this ArrayList later if you want to have the player "discover" new exits (i.e. examined bookshelf in library and found hidden stairwell down could be easily achieved by replacing null in that direction using set
+    HashMap<String, Room> exits = new HashMap<String, Room>();
+
     protected Room(String description)
     {
         this.description = description;
     }
+    protected String musicTrack;
 
-    public void setExits(Room[] rooms)
+    public void setExits(String[] s, Room[] r)
     {
-        for (int i = 0; i < rooms.length; i++){
-            exits[i] = (rooms[i] != null) ? rooms[i] : null;
+        for (int i = 0; i < s.length; i++){
+            exits.put(s[i], r[i]);
         }
     }
 
@@ -18,5 +22,7 @@ public class Room
     {
         return description;
     }
+    public void setMusicTrack(String track){musicTrack=track;}
 
+    public String getMusicTrack(){return musicTrack;}
 }

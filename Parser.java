@@ -24,7 +24,8 @@ public class Parser
         if(commands.isCommand(words[0])) {
             if (words.length < 2)
                 return new Command(words[0], null);
-            return new Command(words[0], words[1]);
+            else
+                return new Command(words[0], words[1]);
         }
         else
             return new Command(null, null);
